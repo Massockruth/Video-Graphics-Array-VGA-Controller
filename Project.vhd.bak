@@ -1,0 +1,62 @@
+------------------------------------------------------------------------
+-- Title			: Project - VGA Controller
+-- Author		: Keila Souriac & Ruth Massock
+-- Date			: 11/08/2024
+-- Description : This program is the driver for the VGA interface on the
+--				     DE-1 FPGA board.
+------------------------------------------------------------------------
+ LIBRARY ieee;
+ USE ieee.std_logic_1164.all;
+ ----------------------------------------------------------
+ ENTITY Project IS
+ GENERIC (
+	Ha: INTEGER := 96; 	--Hpulse
+	Hb: INTEGER := 144;	--Hpulse+HBP
+	Hc: INTEGER := 784; 	--Hpulse+HBP+Hactive
+	Hd: INTEGER := 800; 	--Hpulse+HBP+Hactive+HFP
+	Va: INTEGER := 2; 	--Vpulse
+	Vb: INTEGER := 35; 	--Vpulse+VBP
+	Vc: INTEGER := 515; 	--Vpulse+VBP+Vactive
+	Vd: INTEGER := 525); --Vpulse+VBP+Vactive+VFP
+ PORT (
+	clk: IN STD_LOGIC; --50MHz in our board
+	red_switch, green_switch, blue_switch: IN STD_LOGIC_VECTOR(1 downto 0);
+	pixel_clk: BUFFER STD_LOGIC;
+	Hsync, Vsync: BUFFER STD_LOGIC;
+	R, G, B: OUT STD_LOGIC_VECTOR(7 DOWNTO 0);
+	nblanck, nsync : OUT STD_LOGIC);
+ END Project;
+ ----------------------------------------------------------
+ ARCHITECTURE vga OF Project IS
+ SIGNAL Hactive, Vactive, dena: STD_LOGIC;
+ BEGIN
+ -------------------------------------------------------
+ --Part 1: CONTROL GENERATOR
+ -------------------------------------------------------
+ --Static signals for DACs:
+ nblanck <= '1'; --no direct blanking
+ nsync <= '0'; --no sync on green
+ --Create pixel clock (50MHz->25MHz):
+ PROCESS (clk)
+ BEGIN
+ IF (clk'EVENT AND clk='1') THEN
+ pixel_clk <= NOT pixel_clk;
+ END IF;
+ END PROCESS;
+ --Horizontal signals generation:
+ PROCESS (pixel_clk)
+ VARIABLE Hcount: INTEGER RANGE 0 TO Hd;
+ BEGIN
+ IF (pixel_clk'EVENT AND pixel_clk='1') THEN
+ Hcount := Hcount + 1;
+ IF (Hcount=Ha) THEN
+ Hsync <= '1';
+ ELSIF (Hcount=Hb) THEN
+ Hactive <= '1';
+ ELSIF (Hcount=Hc) THEN
+ Hactive <= '0';
+ ELSIF (Hcount=Hd) THEN
+ Hsync <= '0';
+ Hcount := 0;
+ END IF;
+ END IF;
